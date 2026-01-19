@@ -4,6 +4,7 @@ import React from 'react';
 export enum AppView {
   LOGIN = 'LOGIN',
   OVERVIEW = 'OVERVIEW',
+  NEW_SALE = 'NEW_SALE',
   BILLING = 'BILLING',
   PRODUCTS = 'PRODUCTS',
   EMPLOYEES = 'EMPLOYEES',
@@ -60,6 +61,5 @@ export interface UserProfile {
 
 export interface ContentPage {
   title: string;
-  // Fix: Added import React to satisfy namespace React requirement
   content: React.ReactNode;
 }

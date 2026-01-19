@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import LoginView from './views/LoginView';
 import DashboardLayout from './components/DashboardLayout';
 import Overview from './views/Overview';
+import NewSale from './views/NewSale';
 import BillingManagement from './views/BillingManagement';
 import ProductsManagement from './views/ProductsManagement';
 import EmployeeManagement from './views/EmployeeManagement';
@@ -38,12 +39,13 @@ const App: React.FC = () => {
   const renderContent = () => {
     switch (currentView) {
       case AppView.OVERVIEW: return <Overview />;
+      case AppView.NEW_SALE: return <NewSale />;
       case AppView.BILLING: return <BillingManagement />;
       case AppView.PRODUCTS: return <ProductsManagement />;
       case AppView.EMPLOYEES: return <EmployeeManagement />;
       case AppView.CUSTOMERS: return <CustomerManagement />;
       case AppView.EXPORT: return <ExportManagement />;
-      case AppView.PROFILE: return <ProfileView />;
+      case AppView.PROFILE: return <ProfileView onLogout={handleLogout} />;
       case AppView.CONTENT_PAGE: 
         return (
           <div className="max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-6 duration-700">

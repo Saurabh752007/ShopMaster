@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Product } from '../types';
 
 const INITIAL_PRODUCTS: Product[] = [
@@ -22,7 +22,7 @@ const INITIAL_CATEGORIES = [
 ];
 
 const ProductsManagement: React.FC = () => {
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+  const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState(INITIAL_CATEGORIES);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
@@ -32,6 +32,22 @@ const ProductsManagement: React.FC = () => {
   const [showProductModal, setShowProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+
+  const loadData = () => {
+    const saved = localStorage.getItem('sm_products');
+    if (saved) {
+      setProducts(JSON.parse(saved));
+    } else {
+      localStorage.setItem('sm_products', JSON.stringify(INITIAL_PRODUCTS));
+      setProducts(INITIAL_PRODUCTS);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+    window.addEventListener('sm_data_updated', loadData);
+    return () => window.removeEventListener('sm_data_updated', loadData);
+  }, []);
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
@@ -43,13 +59,9 @@ const ProductsManagement: React.FC = () => {
 
   const handleDeleteProduct = (id: string) => {
     if (confirm('Are you sure you want to delete this product?')) {
-      setProducts(prev => prev.filter(p => p.id !== id));
-    }
-  };
-
-  const handleDeleteCategory = (name: string) => {
-    if (confirm(`Delete category "${name}"? This won't delete products.`)) {
-      setCategories(prev => prev.filter(c => c.name !== name));
+      const updated = products.filter(p => p.id !== id);
+      setProducts(updated);
+      localStorage.setItem('sm_products', JSON.stringify(updated));
     }
   };
 
@@ -65,11 +77,14 @@ const ProductsManagement: React.FC = () => {
       category: formData.get('category') as string,
     };
 
+    let updated;
     if (editingProduct) {
-      setProducts(prev => prev.map(p => p.id === editingProduct.id ? productData : p));
+      updated = products.map(p => p.id === editingProduct.id ? productData : p);
     } else {
-      setProducts(prev => [productData, ...prev]);
+      updated = [productData, ...products];
     }
+    setProducts(updated);
+    localStorage.setItem('sm_products', JSON.stringify(updated));
     setShowProductModal(false);
     setEditingProduct(null);
   };
@@ -98,7 +113,7 @@ const ProductsManagement: React.FC = () => {
       {/* Product Listing */}
       <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row gap-4 items-center justify-between">
-           <h2 className="text-xl font-bold text-gray-800">Product Listing</h2>
+           <h2 className="text-xl font-bold text-gray-800">Inventory Dashboard</h2>
            <div className="flex flex-wrap gap-2">
              <div className="relative">
                <select 
@@ -150,8 +165,8 @@ const ProductsManagement: React.FC = () => {
                   <td className="px-6 py-4 font-medium">₹{p.price.toFixed(2)}</td>
                   <td className="px-6 py-4 text-gray-500">{p.unit}</td>
                   <td className="px-6 py-4">
-                    <span className={`font-bold ${p.stock < 50 ? 'text-amber-600' : 'text-gray-700'}`}>
-                      {p.stock}
+                    <span className={`font-bold ${p.stock < 10 ? 'text-red-600 animate-pulse' : p.stock < 50 ? 'text-amber-600' : 'text-gray-700'}`}>
+                      {p.stock === 0 ? 'Out of Stock' : p.stock}
                     </span>
                   </td>
                   <td className="px-6 py-4">
@@ -200,16 +215,7 @@ const ProductsManagement: React.FC = () => {
             <div key={c.name} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between hover:border-sky-200 transition-colors group">
               <div>
                 <h3 className="font-bold text-gray-800 group-hover:text-sky-600 transition-colors">{c.name}</h3>
-                <p className="text-xs text-gray-400 mt-1">{c.count} Products</p>
-              </div>
-              <div className="flex justify-end gap-3 mt-6">
-                <button className="p-1 text-gray-400 hover:text-sky-600"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
-                <button 
-                  onClick={() => handleDeleteCategory(c.name)}
-                  className="p-1 text-gray-400 hover:text-red-600"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                </button>
+                <p className="text-xs text-gray-400 mt-1">Managed across inventory</p>
               </div>
             </div>
           ))}
@@ -272,36 +278,6 @@ const ProductsManagement: React.FC = () => {
                 {editingProduct ? 'Update Product' : 'Add Product'}
               </button>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Category Modal */}
-      {showCategoryModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden">
-            <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center">
-              <h3 className="text-xl font-bold text-gray-900">New Category</h3>
-              <button onClick={() => setShowCategoryModal(false)} className="text-gray-400 hover:text-gray-600">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-            <div className="p-8">
-              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Category Name</label>
-              <input id="newCatName" className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 transition-all mb-6" />
-              <button 
-                onClick={() => {
-                  const name = (document.getElementById('newCatName') as HTMLInputElement).value;
-                  if (name) {
-                    setCategories(prev => [{ name, count: 0 }, ...prev]);
-                    setShowCategoryModal(false);
-                  }
-                }}
-                className="w-full py-3 bg-sky-600 text-white font-bold rounded-xl shadow-lg shadow-sky-100 hover:bg-sky-700 transition-colors"
-              >
-                Create Category
-              </button>
-            </div>
           </div>
         </div>
       )}
