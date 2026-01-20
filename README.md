@@ -1,20 +1,23 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# ShopMaster Pro - Developer Setup
 
-# Run and deploy your AI Studio app
+This project uses the **Google Gemini API** (@google/genai) to power the "AI Strategy Consultant" feature in the Export Management view.
 
-This contains everything you need to run your app locally.
+## API Configuration
 
-View your app in AI Studio: https://ai.studio/apps/drive/1NpUEl00-MDYz9Eb_Da4vqfkLuIehptve
+To use the AI features locally, you must provide a valid Gemini API key.
 
-## Run Locally
+1. Create a `.env` file in the project root.
+2. Add your API key using the following variable name:
+   ```env
+   API_KEY=your_gemini_api_key_here
+   ```
 
-**Prerequisites:**  Node.js
+The application is configured to automatically pick up this key from `process.env.API_KEY`.
 
+## Key Features
+- **AI Strategy Consultant**: Uses `gemini-3-flash-preview` to analyze your shop's inventory and sales data.
+- **Search Grounding**: Provides real-world web resources for business growth suggestions.
+- **Inventory Management**: Full local-storage persistence for products, employees, and customers.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Getting a Key
+You can obtain an API key for free (within rate limits) from the [Google AI Studio](https://aistudio.google.com/).

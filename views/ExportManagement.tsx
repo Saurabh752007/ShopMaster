@@ -20,7 +20,6 @@ const INITIAL_HISTORY: ActivityLog[] = [
 const ExportManagement: React.FC = () => {
   const [exportTypes, setExportTypes] = useState({ reports: true, product: false, customer: false, employee: false });
   const [format, setFormat] = useState<'PDF' | 'CSV'>('PDF');
-  const [dateRange, setDateRange] = useState('Jan 01, 2024 - Dec 31, 2024');
   const [isExporting, setIsExporting] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiInsight, setAiInsight] = useState<string | null>(null);
@@ -34,6 +33,13 @@ const ExportManagement: React.FC = () => {
   };
 
   const getAiInsights = async () => {
+    // Check if API_KEY is present
+    if (!process.env.API_KEY) {
+      showToast('API Key missing. Check README.md', 'error');
+      setAiInsight("Developer Note: Please add your Gemini API Key to the .env file to enable AI-powered business insights.");
+      return;
+    }
+
     setIsAnalyzing(true);
     setAiInsight(null);
     setGroundingLinks([]);
@@ -106,6 +112,16 @@ const ExportManagement: React.FC = () => {
         </div>
       )}
 
+      {!process.env.API_KEY && (
+        <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center gap-4 text-amber-800 animate-in slide-in-from-top-4">
+          <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center text-xl">⚠️</div>
+          <div>
+            <p className="text-xs font-black uppercase tracking-widest">Developer Configuration Required</p>
+            <p className="text-sm font-medium">Add <code className="bg-amber-100 px-1 rounded">API_KEY</code> to your environment to enable AI insights.</p>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
           {/* Export Settings */}
@@ -136,8 +152,9 @@ const ExportManagement: React.FC = () => {
           </div>
 
           {/* AI Insights Section */}
-          <div className="bg-gradient-to-br from-sky-600 to-indigo-700 p-10 rounded-[2.5rem] text-white shadow-2xl shadow-sky-200">
-            <div className="flex items-center justify-between mb-8">
+          <div className="bg-gradient-to-br from-sky-600 to-indigo-700 p-10 rounded-[2.5rem] text-white shadow-2xl shadow-sky-200 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+            <div className="flex items-center justify-between mb-8 relative z-10">
               <div>
                 <h2 className="text-2xl font-black tracking-tight">AI Strategy Consultant</h2>
                 <p className="text-sky-100/70 text-xs font-bold uppercase tracking-widest mt-1">Powered by Gemini Flash</p>
@@ -146,12 +163,12 @@ const ExportManagement: React.FC = () => {
             </div>
 
             {isAnalyzing ? (
-              <div className="py-12 flex flex-col items-center justify-center space-y-4">
+              <div className="py-12 flex flex-col items-center justify-center space-y-4 relative z-10">
                 <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
                 <p className="text-sm font-black uppercase tracking-widest animate-pulse">Analyzing Shop Performance...</p>
               </div>
             ) : aiInsight ? (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 relative z-10">
                 <div className="bg-white/10 backdrop-blur-md p-6 rounded-2xl border border-white/10 text-sm leading-relaxed font-medium">
                   {aiInsight}
                 </div>
@@ -170,7 +187,7 @@ const ExportManagement: React.FC = () => {
                 <button onClick={getAiInsights} className="text-xs font-black uppercase tracking-widest underline decoration-2 underline-offset-4 hover:text-sky-200">Re-analyze Data</button>
               </div>
             ) : (
-              <div className="text-center py-8">
+              <div className="text-center py-8 relative z-10">
                 <p className="text-sky-100 mb-8 font-medium">Get a personalized growth strategy based on your current inventory and sales data.</p>
                 <button 
                   onClick={getAiInsights}
