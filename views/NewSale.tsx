@@ -1,22 +1,6 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Product, Customer, Bill } from '../types';
-
-const INITIAL_PRODUCTS: Product[] = [
-  { id: '1', name: 'Basmati Rice (5kg)', price: 450.00, unit: 'bags', stock: 120, category: 'Groceries' },
-  { id: '2', name: 'Dishwashing Liquid (1L)', price: 120.00, unit: 'bottles', stock: 35, category: 'Home Care' },
-  { id: '3', name: 'Fresh Milk (500ml)', price: 30.00, unit: 'pouches', stock: 200, category: 'Dairy & Bakery' },
-  { id: '4', name: 'Atta (10kg)', price: 380.00, unit: 'bags', stock: 42, category: 'Groceries' },
-  { id: '5', name: 'Coconut Oil (1L)', price: 210.00, unit: 'bottles', stock: 55, category: 'Cooking Essentials' },
-  { id: '6', name: 'Detergent Powder (2kg)', price: 195.00, unit: 'packs', stock: 70, category: 'Home Care' },
-  { id: '7', name: 'Potato Chips (Large)', price: 50.00, unit: 'packs', stock: 150, category: 'Snacks' },
-];
-
-const INITIAL_CUSTOMERS: Customer[] = [
-  { id: 'CUST-101', name: 'Rahul Sharma', phone: '9876543210', totalSpent: 12500 },
-  { id: 'CUST-102', name: 'Priya Singh', phone: '9988776655', totalSpent: 8750 },
-  { id: 'CUST-103', name: 'Amit Kumar', phone: '9765432109', totalSpent: 21000 },
-];
 
 interface CartItem extends Product {
   quantity: number;
@@ -33,11 +17,19 @@ const NewSale: React.FC = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
 
-  // Load latest data from localStorage or use defaults
-  const [currentProducts] = useState<Product[]>(() => {
+  // Load latest data from localStorage
+  const [currentProducts, setCurrentProducts] = useState<Product[]>([]);
+
+  const loadData = () => {
     const saved = localStorage.getItem('sm_products');
-    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
-  });
+    setCurrentProducts(saved ? JSON.parse(saved) : []);
+  };
+
+  useEffect(() => {
+    loadData();
+    window.addEventListener('sm_data_updated', loadData);
+    return () => window.removeEventListener('sm_data_updated', loadData);
+  }, []);
 
   const filteredProducts = useMemo(() => {
     return currentProducts.filter(p => 
@@ -48,7 +40,7 @@ const NewSale: React.FC = () => {
 
   const filteredCustomers = useMemo(() => {
     if (!customerSearch) return [];
-    const savedCustomers = JSON.parse(localStorage.getItem('sm_customers') || JSON.stringify(INITIAL_CUSTOMERS));
+    const savedCustomers = JSON.parse(localStorage.getItem('sm_customers') || '[]');
     return savedCustomers.filter((c: Customer) => 
       c.name.toLowerCase().includes(customerSearch.toLowerCase()) || 
       c.phone.includes(customerSearch)
@@ -106,7 +98,7 @@ const NewSale: React.FC = () => {
       localStorage.setItem('sm_bills', JSON.stringify([newBill, ...bills]));
 
       // 2. UPDATE INVENTORY
-      const products = JSON.parse(localStorage.getItem('sm_products') || JSON.stringify(INITIAL_PRODUCTS));
+      const products = JSON.parse(localStorage.getItem('sm_products') || '[]');
       const updatedProducts = products.map((p: Product) => {
         const cartItem = cart.find(item => item.id === p.id);
         if (cartItem) {
@@ -117,15 +109,14 @@ const NewSale: React.FC = () => {
       localStorage.setItem('sm_products', JSON.stringify(updatedProducts));
 
       // 3. UPDATE CUSTOMER LTV
-      const customers = JSON.parse(localStorage.getItem('sm_customers') || JSON.stringify(INITIAL_CUSTOMERS));
-      const updatedCustomers = customers.map((c: Customer) => {
-        if (c.id === selectedCustomer.id) {
-          return { ...c, totalSpent: c.totalSpent + total };
-        }
-        return c;
-      });
-      // If it was a walk-in not in original list, we'd add it here if needed
-      if (!customers.find((c: Customer) => c.id === selectedCustomer.id)) {
+      const customers = JSON.parse(localStorage.getItem('sm_customers') || '[]');
+      const updatedCustomers = [...customers];
+      const customerIndex = updatedCustomers.findIndex((c: Customer) => c.id === selectedCustomer.id);
+      
+      if (customerIndex > -1) {
+        updatedCustomers[customerIndex] = { ...updatedCustomers[customerIndex], totalSpent: updatedCustomers[customerIndex].totalSpent + total };
+      } else {
+        // Handle walk-in creation
         updatedCustomers.push({ ...selectedCustomer, totalSpent: total });
       }
       localStorage.setItem('sm_customers', JSON.stringify(updatedCustomers));
@@ -134,7 +125,7 @@ const NewSale: React.FC = () => {
       setCheckoutStatus('success');
       setCart([]);
       
-      // Dispatch event to notify other components to refresh if they are mounted
+      // Dispatch event to notify other components to refresh
       window.dispatchEvent(new Event('sm_data_updated'));
     }, 1500);
   };
@@ -199,32 +190,40 @@ const NewSale: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pb-20 md:pb-0">
-          {filteredProducts.map(p => (
-            <button 
-              key={p.id}
-              onClick={() => addToCart(p)}
-              disabled={p.stock === 0}
-              className={`bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm hover:border-sky-500 hover:shadow-xl hover:shadow-sky-100/30 transition-all group text-left flex flex-col justify-between h-48 ${p.stock === 0 ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
-            >
-              <div>
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{p.category}</p>
-                <h4 className="font-black text-gray-900 group-hover:text-sky-600 transition-colors leading-tight">{p.name}</h4>
-              </div>
-              <div className="flex justify-between items-end">
+        {currentProducts.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pb-20 md:pb-0">
+            {filteredProducts.map(p => (
+              <button 
+                key={p.id}
+                onClick={() => addToCart(p)}
+                disabled={p.stock === 0}
+                className={`bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm hover:border-sky-500 hover:shadow-xl hover:shadow-sky-100/30 transition-all group text-left flex flex-col justify-between h-48 ${p.stock === 0 ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+              >
                 <div>
-                   <p className="text-lg font-black text-gray-900">₹{p.price.toFixed(2)}</p>
-                   <p className={`text-[10px] font-bold ${p.stock < 10 ? 'text-red-500' : 'text-emerald-600'}`}>{p.stock === 0 ? 'Out of Stock' : `${p.stock} in stock`}</p>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{p.category}</p>
+                  <h4 className="font-black text-gray-900 group-hover:text-sky-600 transition-colors leading-tight">{p.name}</h4>
                 </div>
-                {p.stock > 0 && (
-                  <div className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-sky-600 group-hover:text-white transition-all">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
+                <div className="flex justify-between items-end">
+                  <div>
+                    <p className="text-lg font-black text-gray-900">₹{p.price.toFixed(2)}</p>
+                    <p className={`text-[10px] font-bold ${p.stock < 10 ? 'text-red-500' : 'text-emerald-600'}`}>{p.stock === 0 ? 'Out of Stock' : `${p.stock} in stock`}</p>
                   </div>
-                )}
-              </div>
-            </button>
-          ))}
-        </div>
+                  {p.stock > 0 && (
+                    <div className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-sky-600 group-hover:text-white transition-all">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
+                    </div>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="py-32 flex flex-col items-center justify-center bg-white border border-gray-100 rounded-[2.5rem] text-center px-10">
+            <div className="text-5xl mb-6 grayscale opacity-20">🏪</div>
+            <h3 className="text-xl font-black text-gray-900">Catalog Ready</h3>
+            <p className="text-sm text-gray-400 mt-2 font-medium">Add products in the Products tab to start making sales.</p>
+          </div>
+        )}
       </div>
 
       {/* Right Panel: Cart Summary */}

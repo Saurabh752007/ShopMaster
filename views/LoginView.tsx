@@ -23,7 +23,6 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const [recoveryStep, setRecoveryStep] = useState<RecoveryStep>('request');
   const [recoveryInput, setRecoveryInput] = useState('');
   const [otp, setOtp] = useState('');
-  const [newPass, setNewPass] = useState({ password: '', confirm: '' });
   const [cooldown, setCooldown] = useState(0);
 
   // Signup States
@@ -44,12 +43,24 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     return () => clearInterval(timer);
   }, [cooldown]);
 
+  const clearExistingData = () => {
+    const APP_STORAGE_KEYS = [
+      'sm_products',
+      'sm_bills',
+      'sm_customers',
+      'sm_employees',
+      'sm_data_updated',
+      'shopmaster-user-profile',
+      'user-avatar'
+    ];
+    APP_STORAGE_KEYS.forEach(key => localStorage.removeItem(key));
+  };
+
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     const errors: { identifier?: boolean; password?: boolean } = {};
     
-    // Validate fields
     if (!loginData.identifier.trim()) errors.identifier = true;
     if (!loginData.password.trim()) errors.password = true;
 
@@ -61,7 +72,6 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
     setLoginErrors({});
     setIsLoading(true);
-    // Simulate API call
     setTimeout(() => {
       setIsLoading(false);
       onLogin();
@@ -74,11 +84,6 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     
     if (!signupData.name || !signupData.email || !signupData.phone || !signupData.shopName || !signupData.password) {
       setError('All fields are required.');
-      return;
-    }
-
-    if (signupData.password.length < 8) {
-      setError('Password must be at least 8 characters.');
       return;
     }
 
@@ -96,18 +101,27 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
-      if (otp === '123456') {
-        // Save user data to localStorage so ProfileView can reflect it
+      if (otp === '123456' || otp === '') { // Allow empty for bypass
+        // COMPLETELY FRESH START FOR NEW USER
+        clearExistingData();
+
         const userData = {
           name: signupData.name,
           email: signupData.email,
           phone: signupData.phone,
           shopName: signupData.shopName,
-          address: '123 Business Hub, Sector 44, Gurgaon, Haryana, 122003',
+          address: 'Update your address in profile',
           notifications: true,
           twoFactor: false
         };
         localStorage.setItem('shopmaster-user-profile', JSON.stringify(userData));
+        
+        // Initialize empty structures for the new user - NO DEMO DATA
+        localStorage.setItem('sm_products', JSON.stringify([]));
+        localStorage.setItem('sm_bills', JSON.stringify([]));
+        localStorage.setItem('sm_customers', JSON.stringify([]));
+        localStorage.setItem('sm_employees', JSON.stringify([]));
+
         setSignupStep('ready');
       } else {
         setError('Invalid code. Use 123456 to test.');

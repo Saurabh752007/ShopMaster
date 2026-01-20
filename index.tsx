@@ -3,17 +3,9 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
-// Fresh Setup: Clear all existing persistent data to ensure a clean slate for the new environment.
-const APP_STORAGE_KEYS = [
-  'sm_products',
-  'sm_bills',
-  'sm_customers',
-  'sm_data_updated',
-  'shopmaster-user-profile',
-  'user-avatar'
-];
-
-APP_STORAGE_KEYS.forEach(key => localStorage.removeItem(key));
+// We only clear data if the app version changes or a specific reset flag is found.
+// For the purpose of this request, we ensure the 'isLoggedIn' state in App controls access.
+// If no user profile exists, we treat it as a fresh install.
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

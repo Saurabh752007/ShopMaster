@@ -2,12 +2,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Customer } from '../types';
 
-const INITIAL_CUSTOMERS: Customer[] = [
-  { id: 'CUST-101', name: 'Rahul Sharma', phone: '9876543210', totalSpent: 12500 },
-  { id: 'CUST-102', name: 'Priya Singh', phone: '9988776655', totalSpent: 8750 },
-  { id: 'CUST-103', name: 'Amit Kumar', phone: '9765432109', totalSpent: 21000 },
-];
-
 const CustomerManagement: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState('');
@@ -18,12 +12,7 @@ const CustomerManagement: React.FC = () => {
 
   const loadData = () => {
     const saved = localStorage.getItem('sm_customers');
-    if (saved) {
-      setCustomers(JSON.parse(saved));
-    } else {
-      localStorage.setItem('sm_customers', JSON.stringify(INITIAL_CUSTOMERS));
-      setCustomers(INITIAL_CUSTOMERS);
-    }
+    setCustomers(saved ? JSON.parse(saved) : []);
   };
 
   useEffect(() => {
@@ -128,80 +117,77 @@ const CustomerManagement: React.FC = () => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-gray-50/50 text-gray-400 text-[10px] uppercase font-black tracking-[0.2em]">
-              <tr>
-                <th className="px-8 py-6">Customer Profile</th>
-                <th className="px-8 py-6">Contact Number</th>
-                <th className="px-8 py-6">Total Spent (LTV)</th>
-                <th className="px-8 py-6 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {filteredCustomers.length > 0 ? (
-                filteredCustomers.map(c => (
-                  <tr key={c.id} className="group hover:bg-sky-50/30 transition-colors">
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-400 font-black group-hover:bg-sky-500 group-hover:text-white transition-all shadow-sm">
-                          {c.name.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="font-black text-gray-900 text-base">{c.name}</p>
-                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{c.id}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-6 font-bold text-gray-600 tabular-nums">
-                      {c.phone}
-                    </td>
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-3">
-                        <span className="font-black text-gray-900 text-lg">₹{c.totalSpent.toLocaleString()}</span>
-                        {c.totalSpent > 10000 && (
-                          <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-black uppercase rounded tracking-widest">Premium</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-8 py-6 text-right">
-                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button 
-                          onClick={() => setSelectedCustomer(c)}
-                          title="View Profile"
-                          className="p-3 bg-white border border-gray-100 rounded-xl text-sky-600 hover:bg-sky-600 hover:text-white transition-all shadow-sm active:scale-90"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                        </button>
-                        <button 
-                          onClick={() => { setEditingCustomer(c); setIsEditModalOpen(true); }}
-                          title="Edit Information"
-                          className="p-3 bg-white border border-gray-100 rounded-xl text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm active:scale-90"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(c.id)}
-                          title="Delete Record"
-                          className="p-3 bg-white border border-gray-100 rounded-xl text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm active:scale-90"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
+          {filteredCustomers.length > 0 ? (
+            <table className="w-full text-left">
+              <thead className="bg-gray-50/50 text-gray-400 text-[10px] uppercase font-black tracking-[0.2em]">
                 <tr>
-                  <td colSpan={4} className="px-8 py-24 text-center">
-                    <div className="flex flex-col items-center">
-                      <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center text-4xl mb-6 grayscale opacity-40">👥</div>
-                      <h3 className="text-xl font-black text-gray-900">No customers found</h3>
-                    </div>
-                  </td>
+                  <th className="px-8 py-6">Customer Profile</th>
+                  <th className="px-8 py-6">Contact Number</th>
+                  <th className="px-8 py-6">Total Spent (LTV)</th>
+                  <th className="px-8 py-6 text-right">Actions</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                  {filteredCustomers.map(c => (
+                    <tr key={c.id} className="group hover:bg-sky-50/30 transition-colors">
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-400 font-black group-hover:bg-sky-500 group-hover:text-white transition-all shadow-sm">
+                            {c.name.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="font-black text-gray-900 text-base">{c.name}</p>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{c.id}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 font-bold text-gray-600 tabular-nums">
+                        {c.phone}
+                      </td>
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-3">
+                          <span className="font-black text-gray-900 text-lg">₹{c.totalSpent.toLocaleString()}</span>
+                          {c.totalSpent > 10000 && (
+                            <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-black uppercase rounded tracking-widest">Premium</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button 
+                            onClick={() => setSelectedCustomer(c)}
+                            title="View Profile"
+                            className="p-3 bg-white border border-gray-100 rounded-xl text-sky-600 hover:bg-sky-600 hover:text-white transition-all shadow-sm active:scale-90"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                          </button>
+                          <button 
+                            onClick={() => { setEditingCustomer(c); setIsEditModalOpen(true); }}
+                            title="Edit Information"
+                            className="p-3 bg-white border border-gray-100 rounded-xl text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm active:scale-90"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(c.id)}
+                            title="Delete Record"
+                            className="p-3 bg-white border border-gray-100 rounded-xl text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm active:scale-90"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="py-24 text-center flex flex-col items-center">
+              <div className="w-24 h-24 bg-gray-50 rounded-[2.5rem] flex items-center justify-center text-4xl mb-6 grayscale opacity-40">👥</div>
+              <h3 className="text-xl font-black text-gray-900">Directory Empty</h3>
+              <p className="text-sm text-gray-400 mt-2 font-medium max-w-xs">Customers will appear here automatically when they are added to a sale.</p>
+            </div>
+          )}
         </div>
       </div>
 

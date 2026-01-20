@@ -1,15 +1,6 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Employee } from '../types';
-
-const INITIAL_EMPLOYEES: Employee[] = [
-  { id: '1', name: 'Ravi Kumar', role: 'Sales Associate', phone: '9876543210', loginCode: 'BN101', permissions: 'Billing, Customer List' },
-  { id: '2', name: 'Priya Sharma', role: 'Inventory Manager', phone: '9123456789', loginCode: 'BN102', permissions: 'Inventory, Billing' },
-  { id: '3', name: 'Amit Singh', role: 'Accountant', phone: '9988776655', loginCode: 'BN103', permissions: 'Reports, Billing' },
-  { id: '4', name: 'Sneha Reddy', role: 'Customer Service', phone: '9765432109', loginCode: 'BN104', permissions: 'Customer List' },
-  { id: '5', name: 'Gaurav Gupta', role: 'Sales Lead', phone: '9012345678', loginCode: 'BN105', permissions: 'All (except Settings)' },
-  { id: '6', name: 'Anjali Dubey', role: 'Stock Assistant', phone: '9345678901', loginCode: 'BN106', permissions: 'Inventory' },
-];
 
 const ROLES = [
   { name: 'Sales Associate', permissions: 'Billing, Customer List' },
@@ -21,11 +12,22 @@ const ROLES = [
 ];
 
 const EmployeeManagement: React.FC = () => {
-  const [employees, setEmployees] = useState<Employee[]>(INITIAL_EMPLOYEES);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const loadData = () => {
+    const saved = localStorage.getItem('sm_employees');
+    setEmployees(saved ? JSON.parse(saved) : []);
+  };
+
+  useEffect(() => {
+    loadData();
+    window.addEventListener('sm_data_updated', loadData);
+    return () => window.removeEventListener('sm_data_updated', loadData);
+  }, []);
 
   // Form States
   const [formData, setFormData] = useState({
@@ -72,8 +74,11 @@ const EmployeeManagement: React.FC = () => {
 
   const handleDelete = (id: string) => {
     if (confirm('Are you sure you want to remove this employee? This action cannot be undone.')) {
-      setEmployees(prev => prev.filter(e => e.id !== id));
+      const updated = employees.filter(e => e.id !== id);
+      setEmployees(updated);
+      localStorage.setItem('sm_employees', JSON.stringify(updated));
       showToast('Employee removed successfully');
+      window.dispatchEvent(new Event('sm_data_updated'));
     }
   };
 
@@ -81,23 +86,28 @@ const EmployeeManagement: React.FC = () => {
     e.preventDefault();
     const selectedRole = ROLES.find(r => r.name === formData.role);
     
+    let updated;
     if (editingEmployee) {
-      setEmployees(prev => prev.map(emp => 
+      updated = employees.map(emp => 
         emp.id === editingEmployee.id 
           ? { ...emp, ...formData, permissions: selectedRole?.permissions || 'None' } 
           : emp
-      ));
+      );
       showToast('Employee updated successfully');
     } else {
       const newEmployee: Employee = {
-        id: Math.random().toString(36).substr(2, 9),
+        id: `EMP-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
         ...formData,
         permissions: selectedRole?.permissions || 'None',
       };
-      setEmployees(prev => [newEmployee, ...prev]);
+      updated = [newEmployee, ...employees];
       showToast('Employee added successfully');
     }
+    
+    setEmployees(updated);
+    localStorage.setItem('sm_employees', JSON.stringify(updated));
     setIsModalOpen(false);
+    window.dispatchEvent(new Event('sm_data_updated'));
   };
 
   return (
@@ -151,79 +161,81 @@ const EmployeeManagement: React.FC = () => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-gray-50/50 text-gray-400 text-[10px] uppercase font-black tracking-[0.2em]">
-              <tr>
-                <th className="px-8 py-6">Employee</th>
-                <th className="px-8 py-6">Contact</th>
-                <th className="px-8 py-6">Login Code</th>
-                <th className="px-8 py-6">Permissions</th>
-                <th className="px-8 py-6 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {filteredEmployees.length > 0 ? (
-                filteredEmployees.map(emp => (
-                  <tr key={emp.id} className="group hover:bg-sky-50/30 transition-colors">
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400 font-black group-hover:bg-white transition-colors">
-                          {emp.name.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="font-black text-gray-900">{emp.name}</p>
-                          <p className="text-xs text-sky-600 font-bold">{emp.role}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <p className="text-sm font-bold text-gray-600">{emp.phone}</p>
-                    </td>
-                    <td className="px-8 py-6">
-                      <span className="px-3 py-1.5 bg-gray-900 text-white font-mono text-[10px] rounded-lg tracking-widest shadow-sm">
-                        {emp.loginCode}
-                      </span>
-                    </td>
-                    <td className="px-8 py-6">
-                      <div className="flex flex-wrap gap-2">
-                        {emp.permissions.split(', ').map(p => (
-                          <span key={p} className="px-3 py-1 bg-white border border-gray-100 text-[10px] font-black uppercase text-gray-400 rounded-full tracking-tighter">
-                            {p}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-8 py-6 text-right">
-                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button 
-                          onClick={() => handleEdit(emp)}
-                          className="p-3 bg-white border border-gray-100 rounded-xl text-sky-600 hover:bg-sky-600 hover:text-white transition-all active:scale-90 shadow-sm"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(emp.id)}
-                          className="p-3 bg-white border border-gray-100 rounded-xl text-red-500 hover:bg-red-500 hover:text-white transition-all active:scale-90 shadow-sm"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
+          {filteredEmployees.length > 0 ? (
+            <table className="w-full text-left">
+              <thead className="bg-gray-50/50 text-gray-400 text-[10px] uppercase font-black tracking-[0.2em]">
                 <tr>
-                  <td colSpan={5} className="px-8 py-20 text-center">
-                    <div className="flex flex-col items-center">
-                      <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center text-3xl mb-4 grayscale opacity-50">🔍</div>
-                      <p className="text-gray-900 font-black">No employees found</p>
-                      <p className="text-sm text-gray-400 font-bold mt-1">Try adjusting your search filters</p>
-                    </div>
-                  </td>
+                  <th className="px-8 py-6">Employee</th>
+                  <th className="px-8 py-6">Contact</th>
+                  <th className="px-8 py-6">Login Code</th>
+                  <th className="px-8 py-6">Permissions</th>
+                  <th className="px-8 py-6 text-right">Actions</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                  {filteredEmployees.map(emp => (
+                    <tr key={emp.id} className="group hover:bg-sky-50/30 transition-colors">
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400 font-black group-hover:bg-white transition-colors">
+                            {emp.name.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="font-black text-gray-900">{emp.name}</p>
+                            <p className="text-xs text-sky-600 font-bold">{emp.role}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6">
+                        <p className="text-sm font-bold text-gray-600">{emp.phone}</p>
+                      </td>
+                      <td className="px-8 py-6">
+                        <span className="px-3 py-1.5 bg-gray-900 text-white font-mono text-[10px] rounded-lg tracking-widest shadow-sm">
+                          {emp.loginCode}
+                        </span>
+                      </td>
+                      <td className="px-8 py-6">
+                        <div className="flex flex-wrap gap-2">
+                          {emp.permissions.split(', ').map(p => (
+                            <span key={p} className="px-3 py-1 bg-white border border-gray-100 text-[10px] font-black uppercase text-gray-400 rounded-full tracking-tighter">
+                              {p}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button 
+                            onClick={() => handleEdit(emp)}
+                            className="p-3 bg-white border border-gray-100 rounded-xl text-sky-600 hover:bg-sky-600 hover:text-white transition-all active:scale-90 shadow-sm"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(emp.id)}
+                            className="p-3 bg-white border border-gray-100 rounded-xl text-red-500 hover:bg-red-500 hover:text-white transition-all active:scale-90 shadow-sm"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="py-24 text-center flex flex-col items-center">
+              <div className="w-24 h-24 bg-gray-50 rounded-[2.5rem] flex items-center justify-center text-4xl mb-6 grayscale opacity-30">👥</div>
+              <p className="text-gray-900 font-black">No Staff Registered</p>
+              <p className="text-sm text-gray-400 font-bold mt-1">Add your first employee to grant dashboard access.</p>
+              <button 
+                onClick={handleOpenAddModal}
+                className="mt-8 px-8 py-4 bg-sky-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-sky-100 hover:scale-105 active:scale-95 transition-all"
+               >
+                 + Add Employee Profile
+               </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -250,7 +262,7 @@ const EmployeeManagement: React.FC = () => {
                 <input 
                   required
                   type="text" 
-                  className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-sky-500/10 focus:bg-white focus:border-sky-500 transition-all"
+                  className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-sky-500/10 focus:bg-white focus:border-sky-500 transition-all shadow-inner"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g. Rahul Sharma"
@@ -263,7 +275,7 @@ const EmployeeManagement: React.FC = () => {
                   <input 
                     required
                     type="tel" 
-                    className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-sky-500/10 focus:bg-white focus:border-sky-500 transition-all"
+                    className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-sky-500/10 focus:bg-white focus:border-sky-500 transition-all shadow-inner"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     placeholder="98765 43210"
@@ -274,7 +286,7 @@ const EmployeeManagement: React.FC = () => {
                   <input 
                     required
                     type="text" 
-                    className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-mono font-bold outline-none focus:ring-4 focus:ring-sky-500/10 focus:bg-white focus:border-sky-500 transition-all"
+                    className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-mono font-bold outline-none focus:ring-4 focus:ring-sky-500/10 focus:bg-white focus:border-sky-500 transition-all shadow-inner"
                     value={formData.loginCode}
                     onChange={(e) => setFormData({ ...formData, loginCode: e.target.value })}
                     placeholder="BN123"
@@ -285,7 +297,7 @@ const EmployeeManagement: React.FC = () => {
               <div>
                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Primary Role</label>
                 <select 
-                  className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-sky-500/10 focus:bg-white focus:border-sky-500 transition-all cursor-pointer"
+                  className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-sky-500/10 focus:bg-white focus:border-sky-500 transition-all cursor-pointer shadow-inner"
                   value={formData.role}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                 >

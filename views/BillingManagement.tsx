@@ -2,12 +2,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Bill } from '../types';
 
-const INITIAL_BILLS: Bill[] = [
-  { id: 'BN001234', date: '2024-07-28', customer: 'A.K. Sharma', amount: 1500.00, status: 'Paid', items: 5, gstDetails: '18% IGST' },
-  { id: 'BN001233', date: '2024-07-27', customer: 'Priya Singh', amount: 850.50, status: 'Pending', items: 2, gstDetails: '12% CGST/SGST' },
-  { id: 'BN001232', date: '2024-07-27', customer: 'Rahul Gupta', amount: 2100.00, status: 'Paid', items: 7, gstDetails: '18% CGST/SGST' },
-];
-
 const BillingManagement: React.FC = () => {
   const [filter, setFilter] = useState<'All' | 'Paid' | 'Pending' | 'Cancelled'>('All');
   const [search, setSearch] = useState('');
@@ -18,12 +12,7 @@ const BillingManagement: React.FC = () => {
 
   const loadBills = () => {
     const saved = localStorage.getItem('sm_bills');
-    if (saved) {
-      setBills(JSON.parse(saved));
-    } else {
-      localStorage.setItem('sm_bills', JSON.stringify(INITIAL_BILLS));
-      setBills(INITIAL_BILLS);
-    }
+    setBills(saved ? JSON.parse(saved) : []);
   };
 
   useEffect(() => {
@@ -42,6 +31,7 @@ const BillingManagement: React.FC = () => {
   }, [filter, search, bills]);
 
   const handleExportCSV = () => {
+    if (bills.length === 0) return;
     setIsExporting(true);
     setTimeout(() => {
       setIsExporting(false);
@@ -80,7 +70,8 @@ const BillingManagement: React.FC = () => {
           </div>
           <button 
             onClick={handleExportCSV}
-            className="w-full md:w-auto px-8 py-4 bg-gray-900 text-white rounded-[1.5rem] font-black text-xs uppercase tracking-widest hover:bg-sky-600 transition-all active:scale-95"
+            disabled={bills.length === 0}
+            className="w-full md:w-auto px-8 py-4 bg-gray-900 text-white rounded-[1.5rem] font-black text-xs uppercase tracking-widest hover:bg-sky-600 transition-all active:scale-95 disabled:opacity-50"
           >
             Export History
           </button>
@@ -99,36 +90,44 @@ const BillingManagement: React.FC = () => {
         </div>
 
         <div className="hidden md:block bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden">
-          <table className="w-full text-left">
-            <thead className="bg-gray-50/50 text-gray-400 text-[10px] uppercase font-black tracking-widest">
-              <tr>
-                <th className="px-8 py-6">ID</th>
-                <th className="px-8 py-6">Customer</th>
-                <th className="px-8 py-6">Amount</th>
-                <th className="px-8 py-6">Status</th>
-                <th className="px-8 py-6 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {filteredBills.map((bill) => (
-                <tr key={bill.id} className="hover:bg-sky-50/30 transition-colors group">
-                  <td className="px-8 py-6 font-black text-gray-900">{bill.id}</td>
-                  <td className="px-8 py-6 font-bold text-gray-800">{bill.customer}</td>
-                  <td className="px-8 py-6 font-black text-gray-900">₹{bill.amount.toFixed(2)}</td>
-                  <td className="px-8 py-6">
-                    <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${statusColors[bill.status]}`}>
-                      {bill.status}
-                    </span>
-                  </td>
-                  <td className="px-8 py-6 text-right">
-                    <button onClick={() => setSelectedBill(bill)} className="p-3 bg-white border border-gray-100 rounded-xl text-sky-600 hover:bg-sky-600 hover:text-white transition-all shadow-sm">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                    </button>
-                  </td>
+          {filteredBills.length > 0 ? (
+            <table className="w-full text-left">
+              <thead className="bg-gray-50/50 text-gray-400 text-[10px] uppercase font-black tracking-widest">
+                <tr>
+                  <th className="px-8 py-6">ID</th>
+                  <th className="px-8 py-6">Customer</th>
+                  <th className="px-8 py-6">Amount</th>
+                  <th className="px-8 py-6">Status</th>
+                  <th className="px-8 py-6 text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {filteredBills.map((bill) => (
+                  <tr key={bill.id} className="hover:bg-sky-50/30 transition-colors group">
+                    <td className="px-8 py-6 font-black text-gray-900">{bill.id}</td>
+                    <td className="px-8 py-6 font-bold text-gray-800">{bill.customer}</td>
+                    <td className="px-8 py-6 font-black text-gray-900">₹{bill.amount.toFixed(2)}</td>
+                    <td className="px-8 py-6">
+                      <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${statusColors[bill.status]}`}>
+                        {bill.status}
+                      </span>
+                    </td>
+                    <td className="px-8 py-6 text-right">
+                      <button onClick={() => setSelectedBill(bill)} className="p-3 bg-white border border-gray-100 rounded-xl text-sky-600 hover:bg-sky-600 hover:text-white transition-all shadow-sm">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+             <div className="py-24 flex flex-col items-center justify-center text-center px-10">
+               <div className="w-24 h-24 bg-gray-50 rounded-[2.5rem] flex items-center justify-center text-4xl mb-6 grayscale opacity-30">📑</div>
+               <h3 className="text-xl font-black text-gray-900">No Sales Recorded</h3>
+               <p className="text-sm text-gray-400 mt-2 font-medium max-w-xs">Start a transaction in the New Sale tab to see billing history here.</p>
+             </div>
+          )}
         </div>
 
         <div className="md:hidden space-y-4">
@@ -156,6 +155,12 @@ const BillingManagement: React.FC = () => {
               </div>
             </div>
           ))}
+          {filteredBills.length === 0 && (
+             <div className="bg-white rounded-[2rem] border border-gray-100 p-12 text-center flex flex-col items-center">
+                <div className="text-4xl mb-4 grayscale opacity-30">📑</div>
+                <p className="text-gray-400 font-black uppercase tracking-widest text-[10px]">Empty Records</p>
+             </div>
+          )}
         </div>
       </div>
 
