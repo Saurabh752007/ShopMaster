@@ -108,7 +108,7 @@ const Overview: React.FC<{ userRole: UserRole }> = ({ userRole }) => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
            <h1 className="text-3xl font-black text-gray-900 tracking-tight">
-             {isAdmin ? 'Admin Dashboard' : 'Shop Overview'}
+             {isAdmin ? 'Admin Dashboard' : 'Operational Dashboard'}
            </h1>
            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Real-time store metrics and insights</p>
         </div>

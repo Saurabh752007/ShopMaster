@@ -355,9 +355,9 @@ const NewSale: React.FC = () => {
                  'Finalize Sale'
                )}
              </button>
+           </div>
         </div>
       </div>
-    </div>
     </div>
   );
 };

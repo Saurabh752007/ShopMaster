@@ -21,10 +21,17 @@ const App: React.FC = () => {
   useEffect(() => {
     const savedRole = sessionStorage.getItem('sm_session_role');
     const savedLoggedIn = sessionStorage.getItem('sm_session_logged_in');
-    if (savedLoggedIn === 'true' && savedRole) {
+    
+    // Strict validation of role to prevent legacy 'MANAGER' role from persisting
+    const isValidRole = savedRole === UserRole.ADMIN || savedRole === UserRole.USER;
+    
+    if (savedLoggedIn === 'true' && isValidRole) {
       setIsLoggedIn(true);
       setUserRole(savedRole as UserRole);
       setCurrentView(AppView.OVERVIEW);
+    } else {
+      // If invalid role found in session, force logout to clean state
+      if (savedLoggedIn) handleLogout();
     }
   }, []);
 
@@ -41,6 +48,8 @@ const App: React.FC = () => {
     setUserRole(UserRole.USER);
     sessionStorage.removeItem('sm_session_role');
     sessionStorage.removeItem('sm_session_logged_in');
+    // Clear legacy local storage items if necessary
+    localStorage.removeItem('shopmaster-user-profile'); 
     setCurrentView(AppView.LOGIN);
   };
 
