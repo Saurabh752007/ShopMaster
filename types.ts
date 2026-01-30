@@ -1,6 +1,11 @@
 
 import React from 'react';
 
+export enum UserRole {
+  ADMIN = 'ADMIN',
+  USER = 'USER'
+}
+
 export enum AppView {
   LOGIN = 'LOGIN',
   OVERVIEW = 'OVERVIEW',
@@ -57,6 +62,7 @@ export interface UserProfile {
   address: string;
   notifications: boolean;
   twoFactor: boolean;
+  role: UserRole;
 }
 
 export interface ContentPage {

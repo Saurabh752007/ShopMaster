@@ -1,19 +1,20 @@
 
-import React, { useState, useRef, useEffect } from 'react';
-import { UserProfile } from '../types';
+import React, { useState, useRef } from 'react';
+import { UserProfile, UserRole } from '../types';
 
 interface ProfileViewProps {
   onLogout?: () => void;
 }
 
 const DEFAULT_PROFILE: UserProfile = {
-  name: 'User',
-  email: 'email@example.com',
+  name: 'Standard User',
+  email: 'user@shopmaster.pro',
   phone: '+91 00000 00000',
   shopName: 'My Shop',
   address: 'No address set',
   notifications: true,
-  twoFactor: false
+  twoFactor: false,
+  role: UserRole.USER
 };
 
 const ProfileView: React.FC<ProfileViewProps> = ({ onLogout }) => {
@@ -64,9 +65,6 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onLogout }) => {
     reader.readAsDataURL(file);
   };
 
-  const [showPassModal, setShowPassModal] = useState(false);
-  const [passForm, setPassForm] = useState({ current: '', next: '', confirm: '' });
-  
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
@@ -78,20 +76,6 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onLogout }) => {
       showToast('Profile details updated');
       window.dispatchEvent(new Event('sm_data_updated'));
     }, 800);
-  };
-
-  const handlePasswordSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (passForm.next !== passForm.confirm) {
-      showToast('Passwords do not match', 'error');
-      return;
-    }
-    setIsSaving(true);
-    setTimeout(() => {
-      setIsSaving(false);
-      setShowPassModal(false);
-      showToast('Security credentials updated');
-    }, 1200);
   };
 
   const handleFactoryReset = () => {

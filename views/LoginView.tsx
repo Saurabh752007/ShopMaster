@@ -1,12 +1,12 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { UserRole } from '../types';
 
 interface LoginViewProps {
-  onLogin: () => void;
+  onLogin: (role: UserRole) => void;
 }
 
 type AuthMode = 'login' | 'signup';
-type RecoveryStep = 'request' | 'verify' | 'reset' | 'success';
 type SignupStep = 'form' | 'verify' | 'ready';
 
 const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
@@ -18,13 +18,6 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const [loginData, setLoginData] = useState({ identifier: '', password: '' });
   const [loginErrors, setLoginErrors] = useState<{ identifier?: boolean; password?: boolean }>({});
 
-  // Recovery States
-  const [showRecovery, setShowRecovery] = useState(false);
-  const [recoveryStep, setRecoveryStep] = useState<RecoveryStep>('request');
-  const [recoveryInput, setRecoveryInput] = useState('');
-  const [otp, setOtp] = useState('');
-  const [cooldown, setCooldown] = useState(0);
-
   // Signup States
   const [signupStep, setSignupStep] = useState<SignupStep>('form');
   const [signupData, setSignupData] = useState({
@@ -35,34 +28,16 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     password: ''
   });
 
-  useEffect(() => {
-    let timer: any;
-    if (cooldown > 0) {
-      timer = setInterval(() => setCooldown(c => c - 1), 1000);
-    }
-    return () => clearInterval(timer);
-  }, [cooldown]);
-
-  const clearExistingData = () => {
-    const APP_STORAGE_KEYS = [
-      'sm_products',
-      'sm_bills',
-      'sm_customers',
-      'sm_employees',
-      'sm_data_updated',
-      'shopmaster-user-profile',
-      'user-avatar'
-    ];
-    APP_STORAGE_KEYS.forEach(key => localStorage.removeItem(key));
-  };
-
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     const errors: { identifier?: boolean; password?: boolean } = {};
     
-    if (!loginData.identifier.trim()) errors.identifier = true;
-    if (!loginData.password.trim()) errors.password = true;
+    const id = loginData.identifier.trim().toLowerCase();
+    const pass = loginData.password.trim();
+
+    if (!id) errors.identifier = true;
+    if (!pass) errors.password = true;
 
     if (Object.keys(errors).length > 0) {
       setLoginErrors(errors);
@@ -72,9 +47,27 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
     setLoginErrors({});
     setIsLoading(true);
+    
+    /**
+     * Role Mapping:
+     * 1. 'admin' in identifier -> ADMIN (Full Control)
+     * 2. Everything else -> USER (Operational Dashboard)
+     */
+    let assignedRole = UserRole.USER;
+    if (id.includes('admin')) {
+      assignedRole = UserRole.ADMIN;
+    }
+
     setTimeout(() => {
       setIsLoading(false);
-      onLogin();
+      const profile = {
+        name: assignedRole === UserRole.ADMIN ? 'Admin User' : 'Standard User',
+        email: id.includes('@') ? id : `${id}@shopmaster.pro`,
+        role: assignedRole,
+        shopName: 'ShopMaster Demo'
+      };
+      localStorage.setItem('shopmaster-user-profile', JSON.stringify(profile));
+      onLogin(assignedRole);
     }, 1200);
   };
 
@@ -91,8 +84,6 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     setTimeout(() => {
       setIsLoading(false);
       setSignupStep('verify');
-      setOtp('');
-      setCooldown(60);
     }, 1500);
   };
 
@@ -101,31 +92,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
-      if (otp === '123456' || otp === '') { // Allow empty for bypass
-        // COMPLETELY FRESH START FOR NEW USER
-        clearExistingData();
-
-        const userData = {
-          name: signupData.name,
-          email: signupData.email,
-          phone: signupData.phone,
-          shopName: signupData.shopName,
-          address: 'Update your address in profile',
-          notifications: true,
-          twoFactor: false
-        };
-        localStorage.setItem('shopmaster-user-profile', JSON.stringify(userData));
-        
-        // Initialize empty structures for the new user - NO DEMO DATA
-        localStorage.setItem('sm_products', JSON.stringify([]));
-        localStorage.setItem('sm_bills', JSON.stringify([]));
-        localStorage.setItem('sm_customers', JSON.stringify([]));
-        localStorage.setItem('sm_employees', JSON.stringify([]));
-
-        setSignupStep('ready');
-      } else {
-        setError('Invalid code. Use 123456 to test.');
-      }
+      setSignupStep('ready');
     }, 1000);
   };
 
@@ -141,10 +108,10 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
           </div>
 
           <h1 className="text-3xl md:text-4xl font-black text-gray-900 mb-4 leading-tight tracking-tight text-center md:text-left">
-            {mode === 'login' ? 'Welcome back.' : 'Scale your business.'}
+            {mode === 'login' ? 'Access your portal.' : 'Start scaling today.'}
           </h1>
           <p className="text-gray-400 mb-10 font-bold uppercase tracking-widest text-[10px] text-center md:text-left">
-            {mode === 'login' ? 'Enter credentials' : 'Join ShopMaster Pro'}
+            {mode === 'login' ? 'Try "admin" for full access or any other ID for User mode.' : 'Join the ShopMaster network.'}
           </p>
 
           <div className="bg-gray-100 p-1 rounded-2xl flex mb-10 shadow-inner">
@@ -168,7 +135,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
             <form className="space-y-6" onSubmit={handleLoginSubmit} noValidate>
               <InputField 
                 label="Identifier" 
-                placeholder="Email or Phone" 
+                placeholder="e.g. admin@shop.com" 
                 icon="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" 
                 value={loginData.identifier}
                 onChange={v => setLoginData({...loginData, identifier: v})}
@@ -185,42 +152,29 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
               />
               {error && (
                 <div className="bg-red-50 text-red-600 p-4 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-                  <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                   <span className="text-[10px] font-black uppercase tracking-widest">{error}</span>
                 </div>
               )}
-              <div className="text-right">
-                <button type="button" onClick={() => setShowRecovery(true)} className="text-[10px] font-black text-sky-600 uppercase tracking-widest hover:underline">Trouble logging in?</button>
-              </div>
               <button 
                 type="submit"
                 disabled={isLoading} 
-                className="w-full py-5 bg-sky-600 text-white font-black rounded-2xl shadow-2xl shadow-sky-100 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                className="w-full py-5 bg-sky-600 text-white font-black rounded-2xl shadow-2xl shadow-sky-100 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50 mt-4"
               >
-                {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : 'Log In'}
+                {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : 'Confirm & Log In'}
               </button>
             </form>
           ) : (
             <form className="space-y-6" onSubmit={handleSignupSubmit} noValidate>
-              <InputField label="Full Name" placeholder="Rahul S." value={signupData.name} onChange={v => setSignupData({...signupData, name: v})} />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <InputField label="Email Address" placeholder="rahul@example.com" type="email" value={signupData.email} onChange={v => setSignupData({...signupData, email: v})} />
-                <InputField label="Mobile Number" placeholder="+91 98765 43210" type="tel" value={signupData.phone} onChange={v => setSignupData({...signupData, phone: v})} />
-              </div>
+              <InputField label="Name" placeholder="Rahul S." value={signupData.name} onChange={v => setSignupData({...signupData, name: v})} />
               <InputField label="Shop Name" placeholder="Superstore" value={signupData.shopName} onChange={v => setSignupData({...signupData, shopName: v})} />
-              <InputField label="Security Key" type="password" placeholder="8+ characters" value={signupData.password} onChange={v => setSignupData({...signupData, password: v})} />
-              {error && (
-                <div className="bg-red-50 text-red-600 p-4 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-                  <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                  <span className="text-[10px] font-black uppercase tracking-widest">{error}</span>
-                </div>
-              )}
+              <InputField label="Email" placeholder="rahul@example.com" type="email" value={signupData.email} onChange={v => setSignupData({...signupData, email: v})} />
               <button 
                 type="submit"
                 disabled={isLoading} 
-                className="w-full py-5 bg-gray-900 text-white font-black rounded-2xl shadow-2xl active:scale-95 transition-all disabled:opacity-50"
+                className="w-full py-5 bg-gray-900 text-white font-black rounded-2xl shadow-2xl active:scale-95 transition-all mt-4"
               >
-                {isLoading ? 'Creating Account...' : 'Continue to Verification'}
+                {isLoading ? 'Processing...' : 'Create Account'}
               </button>
             </form>
           )}
@@ -229,13 +183,8 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
       
       <div className="flex-1 bg-gray-50 hidden md:flex items-center justify-center p-12">
         <div className="max-w-xl w-full bg-white rounded-[3rem] shadow-2xl p-10 relative border border-white">
-           <img src="https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1000" alt="" className="rounded-[2.5rem] w-full h-[500px] object-cover" />
-           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full px-20">
-              <div className="bg-white/90 backdrop-blur-xl p-8 rounded-[2.5rem] shadow-2xl text-center border border-white">
-                 <h3 className="text-xl font-black text-gray-900 mb-2 tracking-tight">Built for India.</h3>
-                 <p className="text-sm text-gray-400 font-bold uppercase tracking-widest text-[10px]">Trusted by 10k+ Merchants</p>
-              </div>
-           </div>
+           <img src="https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1000" alt="Dashboard" className="rounded-[2.5rem] w-full h-[500px] object-cover" />
+           <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-[2.5rem]"></div>
         </div>
       </div>
 
@@ -244,44 +193,21 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
            <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl p-10 text-center animate-in zoom-in-95">
               {signupStep === 'verify' && (
                 <>
-                  <div className="w-16 h-16 bg-sky-50 text-sky-600 rounded-3xl flex items-center justify-center text-3xl mx-auto mb-6">📱</div>
-                  <h2 className="text-2xl font-black text-gray-900 mb-2">Verify Mobile</h2>
-                  <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-8">Code sent to {signupData.phone}</p>
-                  
-                  <input maxLength={6} placeholder="0 0 0 0 0 0" value={otp} onChange={e => setOtp(e.target.value)} className="w-full px-6 py-5 bg-gray-50 border-transparent rounded-2xl text-center text-2xl font-black tracking-widest outline-none focus:ring-4 focus:ring-sky-500/10 mb-6" />
-                  
-                  <button onClick={handleVerifySignup} className="w-full py-5 bg-sky-600 text-white font-black rounded-2xl shadow-xl active:scale-95 transition-all">Verify & Create Account</button>
-                  
-                  <div className="mt-6 flex justify-between items-center px-2">
-                    <button onClick={() => setSignupStep('form')} className="text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-900">Change Details</button>
-                    <button disabled={cooldown > 0} className="text-[10px] font-black text-sky-600 uppercase tracking-widest disabled:opacity-50">
-                      {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend Code'}
-                    </button>
-                  </div>
+                  <div className="text-4xl mb-6">📱</div>
+                  <h2 className="text-2xl font-black text-gray-900 mb-2">Check your phone</h2>
+                  <p className="text-sm text-gray-400 mb-8">We've sent a code to complete your setup.</p>
+                  <button onClick={handleVerifySignup} className="w-full py-5 bg-sky-600 text-white font-black rounded-2xl">Confirm Code</button>
                 </>
               )}
               {signupStep === 'ready' && (
                 <>
                   <div className="text-5xl mb-6">🎉</div>
-                  <h2 className="text-2xl font-black text-gray-900 mb-4">You're In!</h2>
-                  <p className="text-gray-500 font-medium mb-10">Your shop {signupData.shopName} is ready.</p>
-                  <button onClick={onLogin} className="w-full py-5 bg-sky-600 text-white font-black rounded-2xl shadow-xl active:scale-95 transition-all">Enter Dashboard</button>
+                  <h2 className="text-2xl font-black text-gray-900 mb-4">Account Ready!</h2>
+                  <p className="text-gray-500 font-medium mb-10">You're now ready to use ShopMaster Pro.</p>
+                  <button onClick={() => onLogin(UserRole.ADMIN)} className="w-full py-5 bg-sky-600 text-white font-black rounded-2xl">Enter Admin Panel</button>
                 </>
               )}
            </div>
-        </div>
-      )}
-
-      {showRecovery && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-md">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl p-10 relative animate-in zoom-in-95">
-             <button onClick={() => setShowRecovery(false)} className="absolute top-10 right-10 text-gray-300 hover:text-gray-900 transition-colors">
-               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
-             </button>
-             <h2 className="text-2xl font-black text-gray-900 mb-8 tracking-tight">Recovery</h2>
-             <InputField label="Registered Email" placeholder="email@example.com" value={recoveryInput} onChange={setRecoveryInput} />
-             <button onClick={() => setRecoveryStep('verify')} className="w-full py-5 bg-sky-600 text-white font-black rounded-2xl shadow-xl mt-8">Send Code</button>
-          </div>
         </div>
       )}
     </div>

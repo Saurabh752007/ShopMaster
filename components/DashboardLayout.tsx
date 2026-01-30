@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
-import { AppView } from '../types';
+import { AppView, UserRole } from '../types';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
   currentView: AppView;
+  userRole: UserRole;
   onNavigate: (view: AppView) => void;
   onLogout: () => void;
   onNavigateToContent: (title: string, content: React.ReactNode) => void;
@@ -13,6 +14,7 @@ interface DashboardLayoutProps {
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ 
   children, 
   currentView, 
+  userRole,
   onNavigate, 
   onLogout,
   onNavigateToContent
@@ -34,15 +36,17 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     };
   }, []);
 
-  const navItems = [
-    { view: AppView.OVERVIEW, label: 'Overview', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
-    { view: AppView.NEW_SALE, label: 'New Sale', icon: 'M12 4v16m8-8H4' },
-    { view: AppView.BILLING, label: 'Billing History', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01' },
-    { view: AppView.PRODUCTS, label: 'Products', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
-    { view: AppView.EMPLOYEES, label: 'Employees', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
-    { view: AppView.CUSTOMERS, label: 'Customers', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
-    { view: AppView.EXPORT, label: 'Export Data', icon: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12' },
+  const allNavItems = [
+    { view: AppView.OVERVIEW, label: 'Overview', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6', roles: [UserRole.ADMIN, UserRole.USER] },
+    { view: AppView.NEW_SALE, label: 'New Sale', icon: 'M12 4v16m8-8H4', roles: [UserRole.ADMIN, UserRole.USER] },
+    { view: AppView.BILLING, label: 'Billing History', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01', roles: [UserRole.ADMIN, UserRole.USER] },
+    { view: AppView.PRODUCTS, label: 'Products', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4', roles: [UserRole.ADMIN, UserRole.USER] },
+    { view: AppView.EMPLOYEES, label: 'Employees', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z', roles: [UserRole.ADMIN] },
+    { view: AppView.CUSTOMERS, label: 'Customers', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z', roles: [UserRole.ADMIN, UserRole.USER] },
+    { view: AppView.EXPORT, label: 'Export Data', icon: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12', roles: [UserRole.ADMIN, UserRole.USER] },
   ];
+
+  const navItems = allNavItems.filter(item => item.roles.includes(userRole));
 
   const handleNavigateAction = (view: AppView) => {
     onNavigate(view);
@@ -50,6 +54,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   };
 
   const handleStatusClick = () => {
+    if (userRole !== UserRole.ADMIN) {
+      alert("Access Denied: Only Admins can view system status.");
+      return;
+    }
     const content = (
       <div className="space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -149,10 +157,22 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             </svg>
             ShopMaster
           </button>
+          <div className={`mt-4 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest inline-block ${
+            userRole === UserRole.ADMIN ? 'bg-amber-100 text-amber-600' : 'bg-sky-100 text-sky-600'
+          }`}>
+            {userRole} Mode
+          </div>
         </div>
 
         <nav className="flex-1 px-4 space-y-1 mt-4 md:mt-0">
-          <div className="md:hidden px-4 mb-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Navigation</div>
+          <div className="md:hidden px-4 mb-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">Navigation</div>
+          <div className="md:hidden px-4 mb-6">
+            <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${
+              userRole === UserRole.ADMIN ? 'bg-amber-100 text-amber-600' : 'bg-sky-100 text-sky-600'
+            }`}>
+              {userRole}
+            </span>
+          </div>
           {navItems.map((item) => (
             <button
               key={item.view}
@@ -237,7 +257,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               <div className="flex gap-8 text-[10px] font-black uppercase tracking-widest text-gray-300">
                 <button 
                   onClick={handleStatusClick}
-                  className="hover:text-sky-600 transition-colors focus:outline-none"
+                  className={`transition-colors focus:outline-none ${userRole === UserRole.ADMIN ? 'hover:text-sky-600' : 'opacity-30 cursor-not-allowed'}`}
                 >
                   Status
                 </button>
