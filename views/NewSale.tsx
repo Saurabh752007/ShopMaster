@@ -1,5 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { Product, Customer, Bill } from '../types';
 import BarcodeScanner from '../components/BarcodeScanner';
 
@@ -230,6 +232,52 @@ const NewSale: React.FC = () => {
     }
   }, [validationError]);
 
+  const handlePrintInvoice = () => {
+    const bills = JSON.parse(localStorage.getItem('sm_bills') || '[]');
+    const bill = bills.find((b: Bill) => b.id === lastBillId);
+
+    if (!bill) return;
+
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFontSize(22);
+    doc.text('INVOICE', 105, 20, { align: 'center' });
+    
+    doc.setFontSize(12);
+    doc.text(`Bill ID: ${bill.id}`, 14, 30);
+    doc.text(`Date: ${new Date(bill.date).toLocaleDateString()}`, 14, 36);
+    doc.text(`Customer: ${bill.customer}`, 14, 42);
+    
+    // Items Table
+    const tableColumn = ["Item", "Quantity", "Price", "Total"];
+    const tableRows: any[] = [];
+
+    bill.itemsList?.forEach((item: any) => {
+      const itemData = [
+        item.name,
+        item.quantity,
+        item.price.toFixed(2),
+        (item.price * item.quantity).toFixed(2)
+      ];
+      tableRows.push(itemData);
+    });
+
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 50,
+    });
+
+    // Total
+    const finalY = (doc as any).lastAutoTable.finalY || 50;
+    doc.text(`Total Amount: ${bill.amount.toFixed(2)}`, 14, finalY + 10);
+    doc.text(`Payment Mode: ${bill.paymentMode}`, 14, finalY + 16);
+    doc.text(`Status: ${bill.status}`, 14, finalY + 22);
+
+    doc.save(`invoice_${bill.id}.pdf`);
+  };
+
   if (checkoutStatus === 'success') {
     return (
       <div className="max-w-md mx-auto py-12 text-center animate-in zoom-in duration-500">
@@ -249,7 +297,7 @@ const NewSale: React.FC = () => {
            </div>
         </div>
         <div className="flex flex-col gap-4">
-          <button className="w-full py-5 bg-sky-600 text-white font-black rounded-2xl shadow-xl hover:bg-sky-700 transition-all active:scale-95 flex items-center justify-center gap-2">
+          <button onClick={handlePrintInvoice} className="w-full py-5 bg-sky-600 text-white font-black rounded-2xl shadow-xl hover:bg-sky-700 transition-all active:scale-95 flex items-center justify-center gap-2">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
             Print Invoice
           </button>

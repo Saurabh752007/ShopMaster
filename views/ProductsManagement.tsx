@@ -169,7 +169,7 @@ const ProductsManagement: React.FC<{ userRole: UserRole; onNavigateToBilling: (t
                       <span className="bg-white border border-gray-100 text-gray-400 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">{p.category}</span>
                     </td>
                     <td className="px-8 py-6 text-right">
-                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                      <div className="flex justify-end gap-2 opacity-100 transition-all">
                         <button onClick={() => onNavigateToBilling(p.name)} title="View Associated Bills" className="p-2.5 bg-white border border-gray-100 rounded-xl text-gray-400 hover:bg-gray-900 hover:text-white transition-all shadow-sm">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
                         </button>
