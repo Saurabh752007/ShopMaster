@@ -1,8 +1,8 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Customer } from '../types';
+import { Customer, Bill } from '../types';
 
-const CustomerManagement: React.FC = () => {
+const CustomerManagement: React.FC<{ onNavigateToBilling: (term: string) => void }> = ({ onNavigateToBilling }) => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -43,6 +43,102 @@ const CustomerManagement: React.FC = () => {
       showToast('Customer record deleted successfully');
       window.dispatchEvent(new Event('sm_data_updated'));
     }
+  };
+
+  const handlePrintSummary = (customer: Customer) => {
+    const allBills: Bill[] = JSON.parse(localStorage.getItem('sm_bills') || '[]');
+    const customerBills = allBills.filter(b => b.customer === customer.name);
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      showToast('Please allow popups to print summary', 'error');
+      return;
+    }
+
+    const rows = customerBills.map(bill => `
+      <tr>
+        <td>${bill.date}</td>
+        <td>${bill.id}</td>
+        <td>${bill.items}</td>
+        <td>${bill.status}</td>
+        <td style="text-align: right;">₹${bill.amount.toFixed(2)}</td>
+      </tr>
+    `).join('');
+
+    const htmlContent = `
+      <html>
+        <head>
+          <title>Customer Summary - ${customer.name}</title>
+          <style>
+            body { font-family: 'Inter', sans-serif; padding: 40px; color: #111; }
+            h1 { font-size: 24px; font-weight: 900; margin-bottom: 5px; }
+            .subtitle { font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: #666; margin-bottom: 30px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
+            .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 40px; }
+            .field-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #888; font-weight: bold; }
+            .field-value { font-size: 16px; font-weight: bold; margin-top: 4px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+            th { text-align: left; border-bottom: 2px solid #eee; padding: 12px 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #888; }
+            td { border-bottom: 1px solid #eee; padding: 12px 8px; }
+            .total-section { margin-top: 30px; text-align: right; border-top: 2px solid #111; padding-top: 20px; }
+            .print-btn { display: none; }
+            @media print {
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Customer Statement</h1>
+          <p class="subtitle">Generated on ${new Date().toLocaleDateString()}</p>
+          
+          <div class="grid">
+            <div>
+              <p class="field-label">Customer Name</p>
+              <p class="field-value">${customer.name}</p>
+            </div>
+            <div>
+              <p class="field-label">Customer ID</p>
+              <p class="field-value">${customer.id}</p>
+            </div>
+            <div>
+              <p class="field-label">Phone Number</p>
+              <p class="field-value">${customer.phone}</p>
+            </div>
+            <div>
+              <p class="field-label">Total Spent</p>
+              <p class="field-value">₹${customer.totalSpent.toLocaleString()}</p>
+            </div>
+          </div>
+          
+          <h3>Transaction History</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Bill ID</th>
+                <th>Items</th>
+                <th>Status</th>
+                <th style="text-align: right;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.length > 0 ? rows : '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #888;">No transaction history found.</td></tr>'}
+            </tbody>
+          </table>
+          
+          <div class="total-section">
+            <p class="field-label">Lifetime Value</p>
+            <p style="font-size: 24px; font-weight: 900;">₹${customer.totalSpent.toLocaleString()}</p>
+          </div>
+
+          <script>
+            window.onload = function() { window.print(); }
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
   };
 
   const handleEditSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -154,6 +250,20 @@ const CustomerManagement: React.FC = () => {
                       </td>
                       <td className="px-8 py-6 text-right">
                         <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button 
+                            onClick={() => handlePrintSummary(c)}
+                            title="Print Summary"
+                            className="p-3 bg-white border border-gray-100 rounded-xl text-gray-600 hover:bg-gray-900 hover:text-white transition-all shadow-sm active:scale-90"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                          </button>
+                          <button 
+                            onClick={() => onNavigateToBilling(c.name)}
+                            title="View Transaction History"
+                            className="p-3 bg-white border border-gray-100 rounded-xl text-sky-600 hover:bg-sky-600 hover:text-white transition-all shadow-sm active:scale-90"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+                          </button>
                           <button 
                             onClick={() => setSelectedCustomer(c)}
                             title="View Profile"

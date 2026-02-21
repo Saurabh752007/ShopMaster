@@ -1,6 +1,7 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, UserRole } from '../types';
+import BarcodeScanner from '../components/BarcodeScanner';
 
 const INITIAL_CATEGORIES = [
   { name: 'Groceries', count: 0 },
@@ -11,14 +12,27 @@ const INITIAL_CATEGORIES = [
   { name: 'Beverages', count: 0 },
 ];
 
-const ProductsManagement: React.FC<{ userRole: UserRole }> = ({ userRole }) => {
+const ProductsManagement: React.FC<{ userRole: UserRole; onNavigateToBilling: (term: string) => void }> = ({ userRole, onNavigateToBilling }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories] = useState(INITIAL_CATEGORIES);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [showLowStockOnly] = useState(false);
+  const [showLowStockOnly, setShowLowStockOnly] = useState(false);
 
   const [showProductModal, setShowProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  
+  const [showScanner, setShowScanner] = useState(false);
+  const barcodeInputRef = useRef<HTMLInputElement>(null);
+
+  const handleScan = (result: string) => {
+    if (barcodeInputRef.current) {
+      barcodeInputRef.current.value = result;
+      // Play beep
+      const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+      audio.play().catch(() => {});
+    }
+    setShowScanner(false);
+  };
 
   // Both ADMIN and USER roles can now manage products in the new simplified structure.
   const canManage = true; 
@@ -61,6 +75,7 @@ const ProductsManagement: React.FC<{ userRole: UserRole }> = ({ userRole }) => {
       unit: formData.get('unit') as string,
       stock: parseInt(formData.get('stock') as string),
       category: formData.get('category') as string,
+      barcode: formData.get('barcode') as string,
     };
 
     let updated;
@@ -76,8 +91,32 @@ const ProductsManagement: React.FC<{ userRole: UserRole }> = ({ userRole }) => {
     window.dispatchEvent(new Event('sm_data_updated'));
   };
 
+  const lowStockCount = useMemo(() => {
+    return products.filter(p => p.stock < 50).length;
+  }, [products]);
+
   return (
-    <div className="space-y-12">
+    <div className="space-y-8 animate-in fade-in duration-500">
+      {lowStockCount > 0 && (
+        <div 
+          onClick={() => setShowLowStockOnly(!showLowStockOnly)}
+          className={`cursor-pointer p-6 rounded-[2rem] border transition-all active:scale-[0.98] ${showLowStockOnly ? 'bg-amber-100 border-amber-200 shadow-inner' : 'bg-amber-50 border-amber-100 shadow-sm hover:shadow-md'}`}
+        >
+          <div className="flex items-center gap-4">
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl ${showLowStockOnly ? 'bg-white text-amber-600' : 'bg-amber-100 text-amber-600'}`}>
+              ⚠️
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-gray-900">Low Stock Alert</h3>
+              <p className="text-sm font-medium text-amber-700">
+                {lowStockCount} products have less than 50 units remaining. 
+                <span className="underline ml-1 font-bold">{showLowStockOnly ? 'Show all products' : 'Tap to filter'}</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <section className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
         <div className="p-8 border-b border-gray-100 flex flex-col md:flex-row gap-4 items-center justify-between bg-gray-50/30">
            <div>
@@ -131,6 +170,9 @@ const ProductsManagement: React.FC<{ userRole: UserRole }> = ({ userRole }) => {
                     </td>
                     <td className="px-8 py-6 text-right">
                       <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                        <button onClick={() => onNavigateToBilling(p.name)} title="View Associated Bills" className="p-2.5 bg-white border border-gray-100 rounded-xl text-gray-400 hover:bg-gray-900 hover:text-white transition-all shadow-sm">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+                        </button>
                         <button onClick={() => { setEditingProduct(p); setShowProductModal(true); }} className="p-2.5 bg-white border border-gray-100 rounded-xl text-sky-600 hover:bg-sky-600 hover:text-white transition-all shadow-sm">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                         </button>
@@ -177,6 +219,20 @@ const ProductsManagement: React.FC<{ userRole: UserRole }> = ({ userRole }) => {
                 </div>
               </div>
               <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Barcode (Optional)</label>
+                <div className="relative">
+                  <input ref={barcodeInputRef} name="barcode" defaultValue={editingProduct?.barcode} placeholder="Scan or type barcode" className="w-full pl-6 pr-14 py-4 bg-gray-50 border border-transparent rounded-2xl font-bold outline-none focus:ring-4 focus:ring-sky-500/10 focus:bg-white transition-all shadow-inner" />
+                  <button 
+                    type="button"
+                    onClick={() => setShowScanner(true)}
+                    className="absolute inset-y-2 right-2 px-3 bg-white rounded-xl text-gray-400 hover:text-sky-600 hover:bg-sky-50 transition-all flex items-center justify-center border border-gray-100 shadow-sm"
+                    title="Scan Barcode"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>
+                  </button>
+                </div>
+              </div>
+              <div>
                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Category</label>
                 <select name="category" defaultValue={editingProduct?.category || 'Groceries'} className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl font-black outline-none focus:ring-4 focus:ring-sky-500/10 focus:bg-white transition-all shadow-inner">
                   {categories.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
@@ -186,6 +242,10 @@ const ProductsManagement: React.FC<{ userRole: UserRole }> = ({ userRole }) => {
             </form>
           </div>
         </div>
+      )}
+
+      {showScanner && (
+        <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} />
       )}
     </div>
   );

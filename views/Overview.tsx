@@ -49,6 +49,88 @@ const Overview: React.FC<{ userRole: UserRole }> = ({ userRole }) => {
     todayBills: 0,
     pieData: [] as any[]
   });
+  
+  const [aiSuggestions, setAiSuggestions] = useState<{title: string, text: string, type: 'growth' | 'efficiency' | 'marketing'}[]>([]);
+
+  const generateAiInsights = (bills: Bill[], products: Product[], customers: Customer[]) => {
+    if (bills.length === 0) {
+      setAiSuggestions([
+        { title: "Kickstart Sales", text: "Record your first sale to unlock AI-powered insights for your business.", type: 'growth' },
+        { title: "Inventory Tip", text: "Add at least 10 products to your catalog to get started.", type: 'efficiency' },
+        { title: "Customer Base", text: "Add customer details during checkout to track loyalty later.", type: 'marketing' }
+      ]);
+      return;
+    }
+
+    const dates = bills.map(b => new Date(b.date).getTime());
+    const oldest = new Date(Math.min(...dates));
+    const newest = new Date(Math.max(...dates));
+    const diffTime = Math.abs(newest.getTime() - oldest.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+
+    if (diffDays < 30) {
+      // Early Stage Suggestions
+      setAiSuggestions([
+        { 
+          title: "Build Loyalty Early", 
+          text: `You have ${customers.length} customers. Offer a 5% discount on their next visit to encourage repeat business.`, 
+          type: 'marketing' 
+        },
+        { 
+          title: "Optimize Inventory", 
+          text: "Identify your top 3 selling items this week and ensure they never run out of stock.", 
+          type: 'efficiency' 
+        },
+        { 
+          title: "Expand Reach", 
+          text: "Ask your happy customers to leave a Google Review to attract more local footfall.", 
+          type: 'growth' 
+        }
+      ]);
+    } else {
+      // Growth Stage Analysis (> 30 Days)
+      
+      // 1. Find Busiest Day
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const dayCounts = new Array(7).fill(0);
+      bills.forEach(b => {
+        const day = new Date(b.date).getDay();
+        dayCounts[day]++;
+      });
+      const busiestDayIndex = dayCounts.indexOf(Math.max(...dayCounts));
+      const busiestDay = days[busiestDayIndex];
+
+      // 2. Find Top Category
+      const catCounts: Record<string, number> = {};
+      bills.forEach(b => {
+        b.itemsList?.forEach(item => {
+          const product = products.find(p => p.id === item.productId);
+          if (product) {
+            catCounts[product.category] = (catCounts[product.category] || 0) + item.quantity;
+          }
+        });
+      });
+      const topCategory = Object.entries(catCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'General';
+
+      setAiSuggestions([
+        { 
+          title: "Peak Traffic Insight", 
+          text: `${busiestDay} is your busiest day. Ensure you have full staff coverage and stocked shelves.`, 
+          type: 'efficiency' 
+        },
+        { 
+          title: "Category Expansion", 
+          text: `${topCategory} is your best-performing category. Consider adding premium items to this range to boost margins.`, 
+          type: 'growth' 
+        },
+        { 
+          title: "Customer Retention", 
+          text: `Analyze the ${Math.floor(customers.length * 0.2)} top spenders. Create a VIP WhatsApp group for them with exclusive previews.`, 
+          type: 'marketing' 
+        }
+      ]);
+    }
+  };
 
   const loadLiveStats = () => {
     const bills: Bill[] = JSON.parse(localStorage.getItem('sm_bills') || '[]');
@@ -56,16 +138,35 @@ const Overview: React.FC<{ userRole: UserRole }> = ({ userRole }) => {
     const customers: Customer[] = JSON.parse(localStorage.getItem('sm_customers') || '[]');
     const employees: any[] = JSON.parse(localStorage.getItem('sm_employees') || '[]');
     
+    generateAiInsights(bills, products, customers);
+
     const today = new Date().toISOString().split('T')[0];
     const todayBills = bills.filter(b => b.date === today);
     const totalSalesValue = bills.reduce((acc, b) => acc + (b.status === 'Paid' ? b.amount : 0), 0);
     
     const categoryMap: Record<string, number> = {};
+    let totalStockVal = 0;
+
     products.forEach(p => {
-      categoryMap[p.category] = (categoryMap[p.category] || 0) + p.price * p.stock;
+      const val = p.price * p.stock;
+      categoryMap[p.category] = (categoryMap[p.category] || 0) + val;
+      totalStockVal += val;
     });
     
-    const pieData = Object.entries(categoryMap).map(([name, value]) => ({ name, value })).slice(0, 5);
+    // Sort categories by value descending
+    const sortedCategories = Object.entries(categoryMap)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+
+    // Take top 4
+    let pieData = sortedCategories.slice(0, 4);
+    
+    // Sum the rest as "Others"
+    const othersValue = sortedCategories.slice(4).reduce((acc, curr) => acc + curr.value, 0);
+    if (othersValue > 0) {
+      pieData.push({ name: 'Others', value: othersValue });
+    }
+
     if (pieData.length === 0) pieData.push({ name: 'No Stock', value: 1 });
 
     setStats({
@@ -207,6 +308,46 @@ const Overview: React.FC<{ userRole: UserRole }> = ({ userRole }) => {
                   <span className="text-xs font-black text-gray-700">{item.name}</span>
                 </div>
                 <div className="text-[10px] font-black text-gray-400 tabular-nums">₹{item.value.toLocaleString()}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* AI Suggestions Panel */}
+      <div className="bg-gradient-to-br from-indigo-900 to-violet-900 p-8 rounded-[2.5rem] shadow-xl text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-12 opacity-10">
+          <svg className="w-64 h-64" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><path d="M12 6a1 1 0 0 0-1 1v4.59l-3.29-3.3a1 1 0 0 0-1.42 1.42l5 5a1 1 0 0 0 1.42 0l5-5a1 1 0 0 0-1.42-1.42L13 11.59V7a1 1 0 0 0-1-1z"/></svg>
+        </div>
+        
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center text-xl shadow-inner border border-white/20">
+              ✨
+            </div>
+            <div>
+              <h3 className="text-2xl font-black tracking-tight">AI Business Advisor</h3>
+              <p className="text-indigo-200 text-xs font-bold uppercase tracking-widest mt-1">Smart insights to grow your business</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {aiSuggestions.map((suggestion, idx) => (
+              <div key={idx} className="bg-white/10 backdrop-blur-md border border-white/10 p-6 rounded-2xl hover:bg-white/20 transition-all group">
+                <div className="flex items-center justify-between mb-4">
+                  <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${
+                    suggestion.type === 'growth' ? 'bg-emerald-500/20 text-emerald-300' :
+                    suggestion.type === 'efficiency' ? 'bg-sky-500/20 text-sky-300' :
+                    'bg-amber-500/20 text-amber-300'
+                  }`}>
+                    {suggestion.type}
+                  </span>
+                  <svg className="w-5 h-5 text-white/40 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+                </div>
+                <h4 className="text-lg font-black mb-2">{suggestion.title}</h4>
+                <p className="text-sm text-indigo-100 leading-relaxed font-medium opacity-90">
+                  {suggestion.text}
+                </p>
               </div>
             ))}
           </div>

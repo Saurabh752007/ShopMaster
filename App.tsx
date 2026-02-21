@@ -17,6 +17,7 @@ const App: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<UserRole>(UserRole.USER);
   const [contentPage, setContentPage] = useState<ContentPage | null>(null);
+  const [billingSearchTerm, setBillingSearchTerm] = useState<string>('');
 
   useEffect(() => {
     const savedRole = sessionStorage.getItem('sm_session_role');
@@ -56,6 +57,11 @@ const App: React.FC = () => {
   const handleNavigateToContent = (title: string, content: React.ReactNode) => {
     setContentPage({ title, content });
     setCurrentView(AppView.CONTENT_PAGE);
+  };
+
+  const handleNavigateToBilling = (searchTerm: string) => {
+    setBillingSearchTerm(searchTerm);
+    setCurrentView(AppView.BILLING);
   };
 
   /**
@@ -101,10 +107,10 @@ const App: React.FC = () => {
     switch (currentView) {
       case AppView.OVERVIEW: return <Overview userRole={userRole} />;
       case AppView.NEW_SALE: return <NewSale />;
-      case AppView.BILLING: return <BillingManagement />;
-      case AppView.PRODUCTS: return <ProductsManagement userRole={userRole} />;
+      case AppView.BILLING: return <BillingManagement initialSearch={billingSearchTerm} />;
+      case AppView.PRODUCTS: return <ProductsManagement userRole={userRole} onNavigateToBilling={handleNavigateToBilling} />;
       case AppView.EMPLOYEES: return <EmployeeManagement />;
-      case AppView.CUSTOMERS: return <CustomerManagement />;
+      case AppView.CUSTOMERS: return <CustomerManagement onNavigateToBilling={handleNavigateToBilling} />;
       case AppView.EXPORT: return <ExportManagement userRole={userRole} />;
       case AppView.PROFILE: return <ProfileView onLogout={handleLogout} />;
       case AppView.CONTENT_PAGE: 

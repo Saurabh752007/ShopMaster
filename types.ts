@@ -26,6 +26,14 @@ export interface Product {
   unit: string;
   stock: number;
   category: string;
+  barcode?: string;
+}
+
+export interface BillItem {
+  productId: string;
+  name: string;
+  quantity: number;
+  price: number;
 }
 
 export interface Bill {
@@ -34,7 +42,9 @@ export interface Bill {
   customer: string;
   amount: number;
   status: 'Paid' | 'Pending' | 'Cancelled';
+  paymentMode?: 'Cash' | 'QR' | 'Card';
   items: number;
+  itemsList?: BillItem[];
   gstDetails: string;
 }
 

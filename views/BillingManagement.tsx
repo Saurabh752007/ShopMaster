@@ -2,13 +2,18 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Bill } from '../types';
 
-const BillingManagement: React.FC = () => {
+const BillingManagement: React.FC<{ initialSearch?: string }> = ({ initialSearch }) => {
   const [filter, setFilter] = useState<'All' | 'Paid' | 'Pending' | 'Cancelled'>('All');
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialSearch || '');
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [showShareSuccess, setShowShareSuccess] = useState(false);
   const [bills, setBills] = useState<Bill[]>([]);
+  const [editingStatusId, setEditingStatusId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialSearch) setSearch(initialSearch);
+  }, [initialSearch]);
 
   const loadBills = () => {
     const saved = localStorage.getItem('sm_bills');
@@ -21,11 +26,33 @@ const BillingManagement: React.FC = () => {
     return () => window.removeEventListener('sm_data_updated', loadBills);
   }, []);
 
+  const handleStatusUpdate = (id: string, newStatus: 'Paid' | 'Pending' | 'Cancelled') => {
+    const updatedBills = bills.map(b => b.id === id ? { ...b, status: newStatus } : b);
+    setBills(updatedBills);
+    localStorage.setItem('sm_bills', JSON.stringify(updatedBills));
+    setEditingStatusId(null);
+    window.dispatchEvent(new Event('sm_data_updated'));
+  };
+
+  const handleGstUpdate = (id: string, newGst: string) => {
+    const updatedBills = bills.map(b => b.id === id ? { ...b, gstDetails: newGst } : b);
+    setBills(updatedBills);
+    localStorage.setItem('sm_bills', JSON.stringify(updatedBills));
+    
+    if (selectedBill && selectedBill.id === id) {
+        setSelectedBill({ ...selectedBill, gstDetails: newGst });
+    }
+    
+    window.dispatchEvent(new Event('sm_data_updated'));
+  };
+
   const filteredBills = useMemo(() => {
     return bills.filter(bill => {
       const matchesFilter = filter === 'All' || bill.status === filter;
-      const matchesSearch = bill.id.toLowerCase().includes(search.toLowerCase()) || 
-                            bill.customer.toLowerCase().includes(search.toLowerCase());
+      const searchLower = search.toLowerCase();
+      const matchesSearch = bill.id.toLowerCase().includes(searchLower) || 
+                            bill.customer.toLowerCase().includes(searchLower) ||
+                            (bill.itemsList && bill.itemsList.some(item => item.name.toLowerCase().includes(searchLower)));
       return matchesFilter && matchesSearch;
     });
   }, [filter, search, bills]);
@@ -33,6 +60,37 @@ const BillingManagement: React.FC = () => {
   const handleExportCSV = () => {
     if (bills.length === 0) return;
     setIsExporting(true);
+
+    try {
+      // Generate CSV content
+      const headers = ['Bill ID', 'Date', 'Customer', 'Items', 'Amount', 'Status', 'GST Details'];
+      const csvContent = [
+        headers.join(','),
+        ...bills.map(bill => [
+          bill.id,
+          bill.date,
+          `"${bill.customer.replace(/"/g, '""')}"`, // Escape quotes
+          bill.items,
+          bill.amount.toFixed(2),
+          bill.status,
+          `"${(bill.gstDetails || '').replace(/"/g, '""')}"`
+        ].join(','))
+      ].join('\n');
+
+      // Create download link
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `billing_history_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Export failed:', error);
+    }
+
     setTimeout(() => {
       setIsExporting(false);
       setShowShareSuccess(true);
@@ -68,6 +126,17 @@ const BillingManagement: React.FC = () => {
                onChange={(e) => setSearch(e.target.value)}
              />
           </div>
+          
+          {search && (
+            <button 
+              onClick={() => setSearch('')}
+              className="px-6 py-4 bg-white border border-gray-200 text-gray-600 rounded-[1.5rem] font-black text-xs uppercase tracking-widest hover:bg-gray-50 hover:text-gray-900 transition-all shadow-sm flex items-center gap-2 whitespace-nowrap"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+              Clear Filter
+            </button>
+          )}
+
           <button 
             onClick={handleExportCSV}
             disabled={bills.length === 0}
@@ -108,9 +177,27 @@ const BillingManagement: React.FC = () => {
                     <td className="px-8 py-6 font-bold text-gray-800">{bill.customer}</td>
                     <td className="px-8 py-6 font-black text-gray-900">₹{bill.amount.toFixed(2)}</td>
                     <td className="px-8 py-6">
-                      <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${statusColors[bill.status]}`}>
-                        {bill.status}
-                      </span>
+                      {editingStatusId === bill.id ? (
+                        <select 
+                          autoFocus
+                          className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-gray-200 outline-none focus:ring-2 focus:ring-sky-500/20"
+                          value={bill.status}
+                          onChange={(e) => handleStatusUpdate(bill.id, e.target.value as any)}
+                          onBlur={() => setEditingStatusId(null)}
+                        >
+                          <option value="Paid">Paid</option>
+                          <option value="Pending">Pending</option>
+                          <option value="Cancelled">Cancelled</option>
+                        </select>
+                      ) : (
+                        <button 
+                          onClick={() => setEditingStatusId(bill.id)}
+                          className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${statusColors[bill.status]} hover:opacity-80 transition-opacity`}
+                          title="Click to edit status"
+                        >
+                          {bill.status}
+                        </button>
+                      )}
                     </td>
                     <td className="px-8 py-6 text-right">
                       <button onClick={() => setSelectedBill(bill)} className="p-3 bg-white border border-gray-100 rounded-xl text-sky-600 hover:bg-sky-600 hover:text-white transition-all shadow-sm">
@@ -142,9 +229,33 @@ const BillingManagement: React.FC = () => {
                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{bill.id}</p>
                    <p className="text-lg font-black text-gray-900 mt-1">{bill.customer}</p>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border ${statusColors[bill.status]}`}>
-                  {bill.status}
-                </span>
+                {editingStatusId === bill.id ? (
+                  <select 
+                    autoFocus
+                    className="px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border border-gray-200 outline-none focus:ring-2 focus:ring-sky-500/20"
+                    value={bill.status}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      handleStatusUpdate(bill.id, e.target.value as any);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    onBlur={() => setEditingStatusId(null)}
+                  >
+                    <option value="Paid">Paid</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
+                ) : (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingStatusId(bill.id);
+                    }}
+                    className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border ${statusColors[bill.status]}`}
+                  >
+                    {bill.status}
+                  </button>
+                )}
               </div>
               <div className="flex justify-between items-center pt-4 border-t border-gray-50">
                  <p className="text-xl font-black text-sky-600">₹{bill.amount.toFixed(2)}</p>
@@ -184,6 +295,15 @@ const BillingManagement: React.FC = () => {
                      <div className="p-5 bg-gray-50 rounded-3xl">
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Items Summary</p>
                         <p className="text-sm font-black text-gray-900">{selectedBill.items} units purchased</p>
+                     </div>
+                     <div className="p-5 bg-gray-50 rounded-3xl md:col-span-2">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">GST Details</p>
+                        <input 
+                          className="w-full bg-transparent font-black text-gray-900 outline-none border-b border-transparent focus:border-sky-500 transition-colors placeholder-gray-300"
+                          value={selectedBill.gstDetails || ''}
+                          onChange={(e) => handleGstUpdate(selectedBill.id, e.target.value)}
+                          placeholder="Add GST Information..."
+                        />
                      </div>
                   </div>
                   <div className="p-8 bg-sky-50 rounded-[2rem] border border-sky-100 flex justify-between items-center">

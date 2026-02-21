@@ -1,6 +1,8 @@
 
 import React, { useState } from 'react';
 import { GoogleGenAI } from "@google/genai";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { Product, Bill, Customer, UserRole } from '../types';
 
 interface ActivityLog {
@@ -90,10 +92,110 @@ const ExportManagement: React.FC<{ userRole: UserRole }> = ({ userRole }) => {
 
   const handleExport = () => {
     setIsExporting(true);
+    
+    // Simulate processing delay for better UX
     setTimeout(() => {
+      const downloadCSV = (data: any[], filename: string) => {
+        if (!data.length) return;
+        const headers = Object.keys(data[0]);
+        const csv = [
+          headers.join(','),
+          ...data.map(row => headers.map(fieldName => {
+            const val = row[fieldName];
+            return typeof val === 'object' ? `"${JSON.stringify(val).replace(/"/g, '""')}"` : `"${val}"`;
+          }).join(','))
+        ].join('\n');
+        
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      };
+
+      const downloadPDF = (data: any[], title: string, filename: string) => {
+        if (!data.length) return;
+        const doc = new jsPDF();
+        const headers = Object.keys(data[0]);
+        const rows = data.map(row => Object.values(row).map(val => 
+          typeof val === 'object' ? JSON.stringify(val) : String(val)
+        ));
+
+        doc.setFontSize(18);
+        doc.text(title, 14, 22);
+        
+        autoTable(doc, {
+          head: [headers],
+          body: rows,
+          startY: 30,
+          theme: 'grid',
+          styles: { fontSize: 8 },
+          headStyles: { fillColor: [14, 165, 233] } // Sky-500 color
+        });
+
+        doc.save(filename);
+      };
+
+      let exportedCount = 0;
+      const timestamp = new Date().toISOString().split('T')[0];
+
+      const exportData = (data: any[], name: string) => {
+        if (data.length > 0) {
+          if (format === 'PDF') {
+            downloadPDF(data, `${name} Report`, `${name.toLowerCase()}_export_${timestamp}.pdf`);
+          } else {
+            downloadCSV(data, `${name.toLowerCase()}_export_${timestamp}.csv`);
+          }
+          exportedCount++;
+        }
+      };
+
+      if (exportTypes.reports) {
+        const bills: Bill[] = JSON.parse(localStorage.getItem('sm_bills') || '[]');
+        const formattedBills = bills.map(bill => ({
+          'Bill ID': bill.id,
+          'Date': new Date(bill.date).toLocaleDateString('en-IN'),
+          'Customer Name': bill.customer,
+          'Items Summary': bill.itemsList?.map(i => `${i.name} (x${i.quantity})`).join(', ') || `${bill.items} items`,
+          'Payment Mode': bill.paymentMode || 'Cash',
+          'Status': bill.status,
+          'Total Amount': `₹${bill.amount.toFixed(2)}`
+        }));
+        exportData(formattedBills, 'Sales');
+      }
+      if (exportTypes.product) {
+        const products = JSON.parse(localStorage.getItem('sm_products') || '[]');
+        exportData(products, 'Inventory');
+      }
+      if (exportTypes.customer) {
+        const customers = JSON.parse(localStorage.getItem('sm_customers') || '[]');
+        exportData(customers, 'Customers');
+      }
+      if (exportTypes.employee) {
+        const employees = JSON.parse(localStorage.getItem('sm_employees') || '[]');
+        exportData(employees, 'Employees');
+      }
+
       setIsExporting(false);
-      showToast(`${format} Ready`);
-    }, 1500);
+      
+      if (exportedCount > 0) {
+        showToast(`${exportedCount} files exported successfully`);
+        // Add to history
+        const newLog: ActivityLog = {
+          id: `EXP-${Math.floor(1000 + Math.random() * 9000)}`,
+          type: 'Export',
+          data: `Batch Export (${format})`,
+          date: new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }),
+          status: 'Success',
+          format: format
+        };
+        setHistory(prev => [newLog, ...prev]);
+      } else {
+        showToast('No data found to export', 'error');
+      }
+    }, 1000);
   };
 
   return (
